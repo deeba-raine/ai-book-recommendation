@@ -1,10 +1,11 @@
-import pandas as pd
+import json
+from pathlib import Path
 
-df = pd.read_json(
-    "raw/goodreads_books_young_adult.json",
-    lines=True,
-    dtype=False,
-)
+BASE = Path(__file__).parent          # the data-pipeline folder
+src = BASE / "raw" / "goodreads_books_young_adult.json"
+out_dir = BASE / "output"
+out_dir.mkdir(exist_ok=True)
+dest = out_dir / "books_trimmed.jsonl"
 
 keep = [
     "book_id", "work_id", "title", "title_without_series", "description",
@@ -12,7 +13,16 @@ keep = [
     "image_url", "url", "authors", "popular_shelves", "similar_books",
 ]
 
-df = df[keep]
+total = 0
+with open(src, encoding="utf-8") as fin, open(dest, "w", encoding="utf-8") as fout:
+    for line in fin:
+        if not line.strip():
+            continue
+        book = json.loads(line)
+        slim = {k: book.get(k) for k in keep}
+        fout.write(json.dumps(slim, ensure_ascii=False) + "\n")
+        total += 1
+        if total % 10000 == 0:
+            print(f"{total} books written")
 
-df.to_json("data-pipeline/output/books_trimmed.jsonl", orient="records", lines=True)
-print(df.shape)
+print("Done:", total, "->", dest)
